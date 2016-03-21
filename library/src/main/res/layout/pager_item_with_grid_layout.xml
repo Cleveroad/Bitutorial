@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -15,20 +14,11 @@
 
     </FrameLayout>
 
-    <android.support.v7.widget.GridLayout
-        android:id="@+id/grid_layout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_alignLeft="@+id/item_container"
-        android:layout_alignStart="@+id/item_container"
-        android:layout_alignRight="@+id/item_container"
-        android:layout_alignEnd="@+id/item_container"
-        android:layout_below="@+id/item_container"
-        android:layout_alignBottom="@+id/item_container"
-        tools:background="#80000000"
-        >
+    <RelativeLayout
+        android:id="@+id/grid"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
-    </android.support.v7.widget.GridLayout>
+    </RelativeLayout>
 
 </RelativeLayout>

@@ -2,17 +2,14 @@ package com.cleveroad.splittransformation;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.RectF;
+import android.os.AsyncTask;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.os.CancellationSignal;
 import android.support.v4.util.LruCache;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
-import android.support.v7.widget.GridLayout;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -36,14 +33,17 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
     private final LayoutInflater inflater;
     private final PagerAdapter innerAdapter;
     private final LruCache<String, Bitmap> imagesCache;
-    private CustomEvaluator translationXEvaluator;
-    private CustomEvaluator translationYEvaluator;
+    private PieceTransformer translationXEvaluator;
+    private PieceTransformer translationYEvaluator;
+    private ImageSplitter imageSplitter;
+    private GridFiller gridFiller;
+    private SplitterAsyncTask[] tasks;
 
     public TransformationAdapterWrapper(@NonNull Context context, @NonNull PagerAdapter innerAdapter) {
         this.inflater = LayoutInflater.from(context);
         this.innerAdapter = innerAdapter;
         this.imagesCache = new LruCache<>(PIECES * OFFSET_PAGES);
-        float tx = 300;
+        float tx = 400;
         float ty = 300;
         float spacing = 60;
         float[] randomSpacingsX = new float[PIECES];
@@ -55,6 +55,10 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         }
         translationXEvaluator = new SimpleXEvaluator(-tx, tx, randomSpacingsX);
         translationYEvaluator = new SimpleYEvaluator(-ty, randomSpacingsY);
+        CellFillerAndSplitter cellFillerAndSplitter = new CellFillerAndSplitter(context, ROWS, COLUMNS);
+        imageSplitter = cellFillerAndSplitter;
+        gridFiller = cellFillerAndSplitter;
+        tasks = new SplitterAsyncTask[2];
     }
 
     @Override
@@ -67,24 +71,28 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         RelativeLayout view = (RelativeLayout) inflater.inflate(R.layout.pager_item_with_grid_layout, container, false);
         view.setTag("" + position);
         container.addView(view);
-//        ViewPager.LayoutParams params = (ViewPager.LayoutParams) view.getLayoutParams();
-//        params.gravity = Gravity.CENTER;
-//        view.setLayoutParams(params);
         FrameLayout cont = (FrameLayout) view.findViewById(R.id.item_container);
-        GridLayout gridLayout = (GridLayout) view.findViewById(R.id.grid_layout);
-        gridLayout.setRowCount(ROWS);
-        gridLayout.setColumnCount(COLUMNS);
-        innerAdapter.instantiateItem(cont, position);
-        fillGridLayout(view, cont);
+        RelativeLayout grid = (RelativeLayout) view.findViewById(R.id.grid);
+        Object object = innerAdapter.instantiateItem(cont, position);
+        View v = (View) object;
+        int spec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+        v.measure(spec, spec);
+        v.layout(0, 0, v.getMeasuredWidth(), v.getMeasuredHeight());
+        gridFiller.populateGrid(grid, v);
+        recreatePieces(v, grid);
+        Log.d(TAG, "instantiateItem: " + position + ", w:h = " + v.getMeasuredWidth() + ":" + v.getMeasuredHeight());
         return view;
     }
 
     @Override
     public void destroyItem(ViewGroup container, int position, Object object) {
         View view = (View) object;
+        RelativeLayout layout = (RelativeLayout) view.findViewById(R.id.grid);
+        layout.removeAllViews();
         FrameLayout cont = (FrameLayout) view.findViewById(R.id.item_container);
         innerAdapter.destroyItem(cont, position, cont.getChildAt(0));
         container.removeView(view);
+        Log.d(TAG, "destroyItem: " + position);
     }
 
     @Override
@@ -92,53 +100,10 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         return view == object;
     }
 
-    private void fillGridLayout(GridLayout gridLayout) {
-        for (int row = 0; row < ROWS; row++) {
-            for (int col = 0; col < COLUMNS; col++) {
-                ImageView imageView = (ImageView) inflater.inflate(R.layout.grid_layout_item, gridLayout, false);
-                GridLayout.LayoutParams params = (GridLayout.LayoutParams) imageView.getLayoutParams();
-                params.width = GridLayout.LayoutParams.WRAP_CONTENT;
-                params.height = GridLayout.LayoutParams.WRAP_CONTENT;
-                params.rowSpec = GridLayout.spec(GridLayout.UNDEFINED, 1);
-                params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1);
-                params.setGravity(Gravity.CENTER);
-                imageView.setLayoutParams(params);
-                gridLayout.addView(imageView);
-            }
-        }
-    }
-
-    private void fillGridLayout(RelativeLayout gridLayout, View cont) {
-        for (int row = 0; row < ROWS; row++) {
-            for (int col = 0; col < COLUMNS; col++) {
-                int firstInRow = row * COLUMNS;
-                int prevFirstInRow = (row - 1) * COLUMNS;
-                int pos = col + firstInRow;
-                ImageView imageView = (ImageView) inflater.inflate(R.layout.grid_layout_item, gridLayout, false);
-                imageView.setId(pos);
-                RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) imageView.getLayoutParams();
-                params.width = GridLayout.LayoutParams.WRAP_CONTENT;
-                params.height = GridLayout.LayoutParams.WRAP_CONTENT;
-                if (pos == 0) {
-                    params.topMargin = cont.getTop();
-                    params.leftMargin = cont.getLeft();
-                }
-                if (pos > COLUMNS - 1) {
-                    params.addRule(RelativeLayout.BELOW, prevFirstInRow);
-                }
-                if (pos > 0 && pos != firstInRow) {
-                    params.addRule(RelativeLayout.RIGHT_OF, pos - 1);
-                }
-                imageView.setLayoutParams(params);
-                gridLayout.addView(imageView);
-            }
-        }
-    }
-
     @Override
     public void transformPage(View page, float position) {
         FrameLayout cont = (FrameLayout) page.findViewById(R.id.item_container);
-        RelativeLayout gridLayout = (RelativeLayout) page;
+        RelativeLayout gridLayout = (RelativeLayout) page.findViewById(R.id.grid);
         View view = cont.getChildAt(0);
         float fract = position % 1;
         if (Math.abs(fract) > 0) {
@@ -147,26 +112,21 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         } else {
             cont.setVisibility(View.VISIBLE);
             gridLayout.setVisibility(View.INVISIBLE);
+            Log.d(TAG, "transformPage: " + position);
         }
         Bitmap[] images = new Bitmap[PIECES];
-        boolean recreatePieces = false;
         for (int i = 0; i < images.length; i++) {
             images[i] = imagesCache.get(view.hashCode() + "_" + i);
-            if (images[i] == null) {
-                recreatePieces = true;
-                break;
-            }
-        }
-        if (recreatePieces) {
-            recreatePieces(view, images);
-            for (int i = 2; i < gridLayout.getChildCount(); i++) {
-                ImageView iv = (ImageView) gridLayout.getChildAt(i);
-                iv.setImageBitmap(images[i-2]);
-            }
         }
         for (int row = 0; row < ROWS; row++) {
             for (int col = 0; col < COLUMNS; col++) {
-                ImageView iv = (ImageView) gridLayout.getChildAt(col + row * COLUMNS + 2);
+                ImageView iv = (ImageView) gridLayout.getChildAt(col + row * COLUMNS);
+//                if (row == 0 && col == 0) {
+//                    RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) iv.getLayoutParams();
+//                    params.leftMargin = 0;
+//                    params.topMargin = 0;
+//                    iv.setLayoutParams(params);
+//                }
                 float tX = translationXEvaluator.evaluate(Math.abs(fract), fract < 0, row, col);
                 float tY = translationYEvaluator.evaluate(Math.abs(fract), fract < 0, row, col);
                 iv.setTranslationX(tX);
@@ -175,59 +135,17 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         }
     }
 
-    private void recreatePieces(View page, Bitmap[] images) {
-        createPieces(page, images);
-        for (int i = 0; i < images.length; i++) {
-            if (images[i] == null)
-                Log.w(TAG, "recreatePieces: image is null: " + page.hashCode() + "_" + i);
-            imagesCache.put(page.hashCode() + "_" + i, images[i]);
+    private void recreatePieces(final View page, final RelativeLayout gridLayout) {
+        if (tasks[1] != null) {
+            tasks[1].cancel();
         }
+        SplitterAsyncTask task = new SplitterAsyncTask(page, gridLayout);
+        task.execute();
+        tasks[1] = tasks[0];
+        tasks[0] = task;
     }
 
-    private void createPieces(View view, Bitmap[] images) {
-        Log.d(TAG, "createPieces: " + view.hashCode());
-        view.setDrawingCacheEnabled(true);
-        view.buildDrawingCache();
-        Bitmap bitmap = view.getDrawingCache();
-        if (bitmap != null) {
-            int stepW = bitmap.getWidth() / COLUMNS;
-            int stepH = bitmap.getHeight() / ROWS;
-            RectF rectF = new RectF();
-            Paint paint = new Paint();
-            paint.setColor(Color.RED);
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(2);
-            for (int row = 0; row < ROWS; row++) {
-                for (int col = 0; col < COLUMNS; col++) {
-                    int w = stepW;
-                    int h = stepH;
-                    int x = stepW * col;
-                    int y = stepH * row;
-                    if (x + w > bitmap.getWidth()) {
-                        w = bitmap.getWidth() - x;
-                    }
-                    if (y + h > bitmap.getHeight()) {
-                        h = bitmap.getHeight() - y;
-                    }
-                    Bitmap piece = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-                    Canvas canvas = new Canvas(piece);
-                    Bitmap part = Bitmap.createBitmap(bitmap, x, y, w, h);
-                    if (part == null) {
-                        Log.w(TAG, String.format("createPieces: bitmap is null: x, y, w, h = %d, %d, %d, %d", x, y, w, h));
-                    } else {
-                        canvas.drawBitmap(part, 0, 0, null);
-                        rectF.set(0, 0, part.getWidth(), part.getHeight());
-                        canvas.drawRect(rectF, paint);
-                        part.recycle();
-                    }
-                    images[col + row * COLUMNS] = piece;
-                }
-            }
-        }
-        view.destroyDrawingCache();
-    }
-
-    private static class SimpleXEvaluator implements CustomEvaluator {
+    private static class SimpleXEvaluator implements PieceTransformer {
 
         private final float leftVal, rightVal;
         private final float[] randomSpacingX;
@@ -248,7 +166,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         }
     }
 
-    private static class SimpleYEvaluator implements CustomEvaluator {
+    private static class SimpleYEvaluator implements PieceTransformer {
 
         private final float yValue;
         private final float[] randomSpacingY;
@@ -264,7 +182,92 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         }
     }
 
-    public interface CustomEvaluator {
+    public interface PieceTransformer {
         float evaluate(float fraction, boolean leftSide, int row, int col);
+    }
+
+    /**
+     * Grid layout filler interface.
+     */
+    public interface GridFiller {
+
+        /**
+         * Populate grid with views for displaying pieces.
+         * @param gridLayout instance of RelativeLayout
+         * @param view view created by inner pager adapter
+         */
+        void populateGrid(@NonNull RelativeLayout gridLayout, View view);
+
+        /**
+         * Fill views with images.
+         * @param gridLayout instance of populated RelativeLayout
+         * @param pieces image splitted into pieces
+         */
+        void fillGrid(@NonNull RelativeLayout gridLayout, @Nullable Bitmap[] pieces);
+    }
+
+    /**
+     * Image splitter interface.
+     */
+    public interface ImageSplitter {
+
+        /**
+         * Split image into pieces.
+         * @param image some image
+         * @param cancellationSignal cancellation signal object
+         * @return pieces of image
+         */
+        @Nullable
+        Bitmap[] split(@Nullable Bitmap image, @NonNull CancellationSignal cancellationSignal);
+    }
+
+    private class SplitterAsyncTask extends AsyncTask<Void, Void, Bitmap[]> {
+
+        private final View page;
+        private final RelativeLayout gridLayout;
+        private CancellationSignal cancellationSignal;
+
+        public SplitterAsyncTask(View page, RelativeLayout gridLayout) {
+            this.page = page;
+            this.gridLayout = gridLayout;
+            this.cancellationSignal = new CancellationSignal();
+        }
+
+        public void cancel() {
+            cancel(true);
+            cancellationSignal.cancel();
+        }
+
+        @Override
+        protected Bitmap[] doInBackground(Void... params) {
+            Bitmap[] images = createPieces(page);
+            if (images != null) {
+                for (int i = 0; i < images.length; i++) {
+                    if (images[i] == null)
+                        Log.w(TAG, "recreatePieces: image is null: " + page.hashCode() + "_" + i);
+                    else
+                        imagesCache.put(page.hashCode() + "_" + i, images[i]);
+                }
+            }
+            return images;
+        }
+
+        @Nullable
+        private Bitmap[] createPieces(View view) {
+            Log.d(TAG, "createPieces: " + view.hashCode());
+            view.setDrawingCacheEnabled(true);
+            view.buildDrawingCache();
+            Bitmap bitmap = view.getDrawingCache();
+            Bitmap[] images = imageSplitter.split(bitmap, cancellationSignal);
+            view.destroyDrawingCache();
+            return images;
+        }
+
+        @Override
+        protected void onPostExecute(Bitmap[] images) {
+            super.onPostExecute(images);
+            gridFiller.fillGrid(gridLayout, images);
+        }
+
     }
 }
