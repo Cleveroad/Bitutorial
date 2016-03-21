@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">ViewPager Split Transformation</string>
     <string name="administrator">Administrator #%1$d</string>
+    <string name="skip">Skip</string>
 </resources>

@@ -45,7 +45,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         this.imagesCache = new LruCache<>(PIECES * OFFSET_PAGES);
         float tx = 400;
         float ty = 300;
-        float spacing = 60;
+        float spacing = 80;
         float[] randomSpacingsX = new float[PIECES];
         float[] randomSpacingsY = new float[PIECES];
         Random random = new Random();
