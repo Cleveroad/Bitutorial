@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <declare-styleable name="SquareViewPagerIndicator" tools:ignore="ResourceName">
+        <attr name="trans_squareColor" format="color" />
+        <attr name="trans_squareIndicatorColor" format="color" />
+        <attr name="trans_squareSize" format="dimension" />
+        <attr name="trans_squareSpacing" format="dimension" />
+        <attr name="trans_debugItemsCount" format="integer" />
+    </declare-styleable>
+</resources>

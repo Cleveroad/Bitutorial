@@ -93,7 +93,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
 
     @Override
     public Object instantiateItem(ViewGroup container, int position) {
-        RelativeLayout view = (RelativeLayout) inflater.inflate(R.layout.pager_item_with_grid_layout, container, false);
+        RelativeLayout view = (RelativeLayout) inflater.inflate(R.layout.trans_pager_item_with_grid_layout, container, false);
         ViewHolder viewHolder = new ViewHolder();
         viewHolder.gridLayout = (RelativeLayout) view.findViewById(R.id.grid);
         viewHolder.itemContainer = (FrameLayout) view.findViewById(R.id.item_container);
@@ -459,10 +459,10 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         private Builder(@NonNull Context context, @NonNull PagerAdapter pagerAdapter) {
             this.context = context;
             this.innerAdapter = pagerAdapter;
-            this.marginTop = context.getResources().getDimensionPixelSize(R.dimen.marging_top);
-            this.piecesSpacing = context.getResources().getDimension(R.dimen.pieces_spacing);
-            this.translationX = context.getResources().getDimension(R.dimen.translation_x);
-            this.translationY = context.getResources().getDimension(R.dimen.translation_y);
+            this.marginTop = context.getResources().getDimensionPixelSize(R.dimen.trans_margin_top);
+            this.piecesSpacing = context.getResources().getDimension(R.dimen.trans_pieces_spacing);
+            this.translationX = context.getResources().getDimension(R.dimen.trans_translation_x);
+            this.translationY = context.getResources().getDimension(R.dimen.trans_translation_y);
         }
 
         /**

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="trans_square_color">#fd9854</color>
+    <color name="trans_selected_square_color">#fd5911</color>
+</resources>
