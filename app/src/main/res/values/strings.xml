@@ -2,4 +2,6 @@
     <string name="app_name">ViewPager Split Transformation</string>
     <string name="administrator">Administrator #%1$d</string>
     <string name="skip">Skip</string>
+    <string name="simple_views">Simple Views</string>
+    <string name="fragments">Fragments</string>
 </resources>
