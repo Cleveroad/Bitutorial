@@ -48,12 +48,17 @@ public class SquareViewPagerIndicator extends View implements ViewPager.OnPageCh
     }
 
     public SquareViewPagerIndicator(Context context, AttributeSet attrs, int defStyleAttr) {
-        this(context, attrs, defStyleAttr, 0);
+        super(context, attrs, defStyleAttr);
+        init(context, attrs);
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public SquareViewPagerIndicator(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
+        init(context, attrs);
+    }
+
+    private void init(Context context, AttributeSet attrs) {
         squaresPaint = new Paint();
         squaresPaint.setAntiAlias(true);
         indicatorPaint = new Paint();

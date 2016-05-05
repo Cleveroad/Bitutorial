@@ -41,7 +41,7 @@ public class SimpleViewsFragment extends Fragment {
         SimplePagerAdapter adapter = new SimplePagerAdapter(getContext());
         TransformationAdapterWrapper wrapper = TransformationAdapterWrapper
                 .wrap(getContext(), adapter)
-                .rows(10)
+                .rows(15)
                 .columns(10)
                 .build();
         viewPager.setAdapter(wrapper);
