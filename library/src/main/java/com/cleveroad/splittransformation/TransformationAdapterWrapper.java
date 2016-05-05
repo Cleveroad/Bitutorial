@@ -207,6 +207,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         private float translationX, translationY;
         private float[] randomSpacingsX;
         private float[] randomSpacingsY;
+        private float[] randomRotations;
         private Bitmap bitmap;
         private int originalWidth, originalHeight;
         private float position, absPosition;
@@ -221,9 +222,11 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
             int pieces = rows * cols;
             randomSpacingsX = new float[pieces];
             randomSpacingsY = new float[pieces];
+            randomRotations = new float[pieces];
             for (int i = 0; i < pieces; i++) {
                 randomSpacingsX[i] = piecesSpacing + random.nextFloat() * piecesSpacing / 4 * (random.nextBoolean() ? 1 : -1);
                 randomSpacingsY[i] = piecesSpacing + random.nextFloat() * piecesSpacing / 4 * (random.nextBoolean() ? 1 : -1);
+                randomRotations[i] = 20 + random.nextFloat() * 70 * (random.nextBoolean() ? 1 : -1);
             }
         }
 
@@ -263,7 +266,11 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
                         // draw only visible pieces
                         if (canvasPiece.left < canvas.getWidth() || canvasPiece.right > 0 ||
                                 canvasPiece.top < canvas.getHeight() || canvasPiece.bottom > 0) {
+                            float angle = randomRotations[index] * absPosition;
+                            canvas.save();
+                            canvas.rotate(angle, canvasPiece.centerX(), canvasPiece.centerY());
                             canvas.drawBitmap(bitmap, bitmapPiece, canvasPiece, null);
+                            canvas.restore();
                         }
                     }
                 }
