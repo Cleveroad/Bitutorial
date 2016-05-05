@@ -1,0 +1,6 @@
+<resources>
+    <dimen name="margin_top">12dp</dimen>
+    <dimen name="page_width">225dp</dimen>
+    <dimen name="page_height">300dp</dimen>
+    <dimen name="pager_indicator_margin">330dp</dimen>
+</resources>

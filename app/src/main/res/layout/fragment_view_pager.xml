@@ -19,8 +19,8 @@
         android:id="@+id/indicator"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="450dp"
-        app:trans_debugItemsCount="8"
+        android:layout_marginTop="@dimen/pager_indicator_margin"
+        app:trans_debugItemsCount="4"
         />
 
     <Button

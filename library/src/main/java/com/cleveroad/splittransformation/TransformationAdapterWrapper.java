@@ -2,13 +2,13 @@ package com.cleveroad.splittransformation;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.os.AsyncTask;
+import android.graphics.Canvas;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.support.v4.os.CancellationSignal;
 import android.support.v4.util.LruCache;
-import android.support.v4.util.SparseArrayCompat;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.view.LayoutInflater;
@@ -18,7 +18,6 @@ import android.widget.AdapterView;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 
@@ -39,21 +38,21 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
     private final PagerAdapter innerAdapter;
     private final LruCache<String, Bitmap> imagesCache;
     private final Map<Object, ViewHolder> itemsMap;
-    private final Map<View, Float> positionsMap;
-    private final SparseArrayCompat<SplitterAsyncTask> tasks;
-    private final int screenWidth;
-    
+    private final Map<String, Float> positionsMap;
+
     private final int rows, columns;
-    private final int pieces;
     private final int marginTop;
-    private final float[] randomSpacingsX;
-    private final float[] randomSpacingsY;
     private final float translationX;
     private final float translationY;
+    private final float piecesSpacing;
+    private final float bitmapScale;
+    private final ComplexViewDetector complexViewDetector;
+    private final BitmapTransformer.Factory bitmapTransformerFactory;
 
     /**
-     * Wrap existing page adapter and return wrapper.
-     * @param context instance of context
+     * Wrap existing page adapter and return a wrapper.
+     *
+     * @param context      instance of context
      * @param innerAdapter inner pager adapter
      * @return wrapped adapter
      */
@@ -61,29 +60,21 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         return new Builder(context, innerAdapter);
     }
 
-    private TransformationAdapterWrapper(@NonNull Context context, @NonNull PagerAdapter innerAdapter, 
-                                         int rows, int columns, int marginTop,
-                                         float translationX, float translationY, float piecesSpacing) {
-        this.inflater = LayoutInflater.from(context);
-        this.innerAdapter = innerAdapter;
-        this.rows = rows;
-        this.columns = columns;
-        this.pieces = rows * columns;
-        this.marginTop = marginTop;
-        this.imagesCache = new LruCache<>(pieces * OFFSET_PAGES);
-        this.randomSpacingsX = new float[pieces];
-        this.randomSpacingsY = new float[pieces];
-        this.translationX = translationX;
-        this.translationY = translationY;
-        Random random = new Random();
-        for (int i = 0; i < pieces; i++) {
-            randomSpacingsX[i] = piecesSpacing + random.nextFloat() * piecesSpacing / 4 * (random.nextBoolean() ? 1 : -1);
-            randomSpacingsY[i] = piecesSpacing + random.nextFloat() * piecesSpacing / 4 * (random.nextBoolean() ? 1 : -1);
-        }
-        screenWidth = context.getResources().getDisplayMetrics().widthPixels;
-        tasks = new SparseArrayCompat<>(OFFSET_PAGES);
-        itemsMap = new HashMap<>();
-        positionsMap = new HashMap<>();
+    private TransformationAdapterWrapper(@NonNull Builder builder) {
+        this.inflater = LayoutInflater.from(builder.context);
+        this.innerAdapter = builder.innerAdapter;
+        this.rows = builder.rows;
+        this.columns = builder.columns;
+        this.marginTop = builder.marginTop;
+        this.imagesCache = new LruCache<>(OFFSET_PAGES);
+        this.translationX = builder.translationX;
+        this.translationY = builder.translationY;
+        this.piecesSpacing = builder.piecesSpacing;
+        this.complexViewDetector = builder.complexViewDetector;
+        this.bitmapTransformerFactory = builder.bitmapTransformerFactory;
+        this.bitmapScale = builder.bitmapScale;
+        this.itemsMap = new HashMap<>();
+        this.positionsMap = new HashMap<>();
     }
 
     @Override
@@ -95,7 +86,9 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
     public Object instantiateItem(ViewGroup container, int position) {
         RelativeLayout view = (RelativeLayout) inflater.inflate(R.layout.trans_pager_item_with_grid_layout, container, false);
         ViewHolder viewHolder = new ViewHolder();
-        viewHolder.gridLayout = (RelativeLayout) view.findViewById(R.id.grid);
+        viewHolder.transformerView = (TransformerView) view.findViewById(R.id.split_view);
+        viewHolder.transformerView.setBitmapTransformer(bitmapTransformerFactory.newTransformer());
+        viewHolder.transformerView.setup(rows, columns, marginTop, translationX, translationY, piecesSpacing);
         viewHolder.itemContainer = (FrameLayout) view.findViewById(R.id.item_container);
         viewHolder.itemContainer.setId(ITEM_CONTAINER_START_ID + position);
         viewHolder.itemContainer.setPadding(0, marginTop, 0, 0);
@@ -109,10 +102,31 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
             v = ((Fragment) object).getView();
         }
         if (v != null) {
-            populateGrid(viewHolder.gridLayout, v);
+            generateBitmap(v, viewHolder.transformerView);
         }
         itemsMap.put(view, viewHolder);
         return view;
+    }
+
+    private void generateBitmap(View view, TransformerView transformerView) {
+        if (view.getWidth() == 0) {
+            int spec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+            view.measure(spec, spec);
+            view.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
+        }
+        Bitmap image = Bitmap.createBitmap(view.getMeasuredWidth(), view.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(image);
+        view.draw(canvas);
+        int w = image.getWidth();
+        int h = image.getHeight();
+        Bitmap scaledImage = Bitmap.createScaledBitmap(image, (int) (image.getWidth() * bitmapScale), (int) (image.getHeight() * bitmapScale), false);
+        if (scaledImage != image) {
+            image.recycle();
+        }
+        image = scaledImage;
+        imagesCache.put(view.hashCode() + "", image);
+        transformerView.setBitmap(image, w, h);
+        transformerView.invalidate();
     }
 
     @Override
@@ -125,9 +139,8 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
     public void destroyItem(ViewGroup container, int position, Object object) {
         View view = (View) object;
         ViewHolder viewHolder = itemsMap.get(object);
-        viewHolder.gridLayout.removeAllViews();
+        positionsMap.remove(viewHolder.itemContainer.getChildAt(0).hashCode() + "");
         innerAdapter.destroyItem(viewHolder.itemContainer, position, viewHolder.innerObject);
-        positionsMap.remove(viewHolder.itemContainer.getChildAt(0));
         itemsMap.remove(object);
         container.removeView(view);
     }
@@ -151,283 +164,137 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         View innerView = viewHolder.itemContainer.getChildAt(0);
         float absPosition = Math.abs(position);
         if (absPosition > 0) {
-            // recreate images if necessary
-            recreatePieces(innerView, viewHolder.gridLayout);
-            viewHolder.itemContainer.setVisibility(View.INVISIBLE);
-            viewHolder.gridLayout.setVisibility(View.VISIBLE);
+            viewHolder.itemContainer.setVisibility(View.GONE);
+            viewHolder.transformerView.setVisibility(View.VISIBLE);
+            Float prevPosition = positionsMap.get(innerView.hashCode() + "");
+            // regenerate image if necessary
+            if (!viewHolder.transformerView.hasBitmap() || (prevPosition == null || prevPosition == 0) && complexViewDetector.isComplexView(innerView)) {
+                generateBitmap(innerView, viewHolder.transformerView);
+            }
+            viewHolder.transformerView.onTransformPage(position);
         } else {
-            // cancel running task
-            cancelRecreationTask(innerView);
             viewHolder.itemContainer.setVisibility(View.VISIBLE);
-            viewHolder.gridLayout.setVisibility(View.INVISIBLE);
+            viewHolder.transformerView.setVisibility(View.GONE);
         }
         // update page's position
-        positionsMap.put(innerView, position);
-        // get images from cache
-        Bitmap[] images = new Bitmap[pieces];
-        for (int i = 0; i < images.length; i++) {
-            images[i] = imagesCache.get(innerView.hashCode() + "_" + i);
-        }
-        // populate grid (for fragments)
-        if (viewHolder.gridLayout.getChildCount() == 0) {
-            populateGrid(viewHolder.gridLayout, innerView);
-        }
-        // update animation
-        if (viewHolder.gridLayout.getChildCount() > 0) {
-            for (int row = 0; row < rows; row++) {
-                for (int col = 0; col < columns; col++) {
-                    ImageView iv = (ImageView) viewHolder.gridLayout.getChildAt(col + row * columns);
-                    float tX;
-                    int pos = col + row * columns;
-                    if (position < 0) {
-                        tX = (-translationX - randomSpacingsX[pos] * (columns - col)) * absPosition;
-                    } else {
-                        tX  = (translationX + randomSpacingsX[pos] * col) * absPosition;
-                    }
-                    float tY = (translationY - randomSpacingsY[col + row * columns] * (rows - row)) * absPosition;
-                    iv.setTranslationX(tX);
-                    iv.setTranslationY(tY);
+        positionsMap.put(innerView.hashCode() + "", position);
+    }
+
+    private static class ComplexViewDetectorImpl implements ComplexViewDetector {
+
+        @Override
+        public boolean isComplexView(@NonNull View view) {
+            if (view instanceof ViewGroup) {
+                ViewGroup viewGroup = (ViewGroup) view;
+                for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                    if (isComplexView(viewGroup.getChildAt(i)))
+                        return true;
                 }
             }
+            if (view instanceof EditText || view instanceof CompoundButton || view instanceof ProgressBar || view instanceof AdapterView)
+                return true;
+            return false;
         }
     }
 
-    /**
-     * Check if pieces exist in cache and recreate them if necessary.
-     * @param page view used for image creation
-     * @param gridLayout grid layout
-     */
-    private void recreatePieces(final View page, final RelativeLayout gridLayout) {
-        Bitmap[] images = new Bitmap[pieces];
-        boolean recreate = false;
-        for (int i = 0; i < pieces; i++) {
-            images[i] = imagesCache.get(page.hashCode() + "_" + i);
-            if (images[i] == null) {
-                recreate = true;
-                break;
+    private static class BitmapTransformerImpl implements BitmapTransformer {
+
+        private final Random random = new Random();
+        private final RectF canvasPiece = new RectF();
+        private final Rect bitmapPiece = new Rect();
+        private int rows, cols;
+        private int marginTop;
+        private float translationX, translationY;
+        private float[] randomSpacingsX;
+        private float[] randomSpacingsY;
+        private Bitmap bitmap;
+        private int originalWidth, originalHeight;
+        private float position, absPosition;
+
+        @Override
+        public void setup(int rows, int cols, int marginTop, float translationX, float translationY, float piecesSpacing) {
+            this.rows = rows;
+            this.cols = cols;
+            this.marginTop = marginTop;
+            this.translationX = translationX;
+            this.translationY = translationY;
+            int pieces = rows * cols;
+            randomSpacingsX = new float[pieces];
+            randomSpacingsY = new float[pieces];
+            for (int i = 0; i < pieces; i++) {
+                randomSpacingsX[i] = piecesSpacing + random.nextFloat() * piecesSpacing / 4 * (random.nextBoolean() ? 1 : -1);
+                randomSpacingsY[i] = piecesSpacing + random.nextFloat() * piecesSpacing / 4 * (random.nextBoolean() ? 1 : -1);
             }
-        }
-        Float prevPosition = positionsMap.get(page);
-        if (!recreate && (prevPosition == null || prevPosition == 0) && isComplexView(page)) {
-            recreate = true;
-        }
-        if (recreate) {
-            SplitterAsyncTask task = tasks.get(page.hashCode());
-            if (task == null || task.isCompleted()) {
-                task = new SplitterAsyncTask(page, gridLayout);
-                tasks.put(page.hashCode(), task);
-                task.execute();
-            }
-        }
-    }
-
-    /**
-     * Check if view is a complex view.
-     * @param view some view
-     * @return true if view is complex, false otherwise
-     */
-    private boolean isComplexView(View view) {
-        if (view instanceof ViewGroup) {
-            ViewGroup viewGroup = (ViewGroup) view;
-            for (int i = 0; i < viewGroup.getChildCount(); i++) {
-                if (isComplexView(viewGroup.getChildAt(i)))
-                    return true;
-            }
-        }
-        if (view instanceof EditText || view instanceof CompoundButton || view instanceof ProgressBar || view instanceof AdapterView)
-            return true;
-        return false;
-    }
-
-    /**
-     * Cancel recreation task.
-     * @param page view associated with task
-     */
-    private void cancelRecreationTask(final View page) {
-        SplitterAsyncTask task = tasks.get(page.hashCode());
-        if (task != null && !task.isCompleted()) {
-            task.cancel();
-        }
-        tasks.remove(page.hashCode());
-    }
-
-    /**
-     * Add image views to grid layout.
-     * @param gridLayout instance of grid layout
-     * @param view inner view used for finding proper right margin
-     */
-    private void populateGrid(@NonNull RelativeLayout gridLayout, View view) {
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < columns; col++) {
-                int firstInRow = row * columns;
-                int prevFirstInRow = (row - 1) * columns;
-                int pos = col + firstInRow;
-                ImageView imageView = new ImageView(gridLayout.getContext());
-                imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                if (pos == 0) {
-                    int w;
-                    if (view.getWidth() == 0) {
-                        int spec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
-                        view.measure(spec, spec);
-                        w = view.getMeasuredWidth();
-                    } else {
-                        w = view.getWidth();
-                    }
-                    params.leftMargin = (screenWidth - w) / 2;
-                    params.topMargin = marginTop;
-                }
-                if (pos > 0 && pos <= columns - 1) {
-                    params.addRule(RelativeLayout.ALIGN_TOP, 1);
-                } else if (pos > columns - 1) {
-                    params.addRule(RelativeLayout.BELOW, prevFirstInRow + 1);
-                }
-                if (pos > 0 && pos == firstInRow) {
-                    params.addRule(RelativeLayout.ALIGN_LEFT, prevFirstInRow + 1);
-                }
-                if (pos > 0 && pos != firstInRow) {
-                    params.addRule(RelativeLayout.RIGHT_OF, pos);
-                }
-                imageView.setId(pos + 1);
-                imageView.setLayoutParams(params);
-                gridLayout.addView(imageView);
-            }
-        }
-    }
-
-
-    /**
-     * AsyncTask that split image into pieces and fill grid layout.
-     */
-    private class SplitterAsyncTask extends AsyncTask<Void, Void, Bitmap[]> {
-
-        private final View page;
-        private final RelativeLayout gridLayout;
-        private CancellationSignal cancellationSignal;
-        private boolean completed;
-
-        private SplitterAsyncTask(View page, RelativeLayout gridLayout) {
-            this.page = page;
-            this.gridLayout = gridLayout;
-            this.cancellationSignal = new CancellationSignal();
-        }
-
-        /**
-         * Cancel task.
-         */
-        private void cancel() {
-            cancel(true);
-            cancellationSignal.cancel();
         }
 
         @Override
-        protected Bitmap[] doInBackground(Void... params) {
-            Bitmap[] images = createPieces(page);
-            if (images != null) {
-                // put pieces into cache
-                for (int i = 0; i < images.length; i++) {
-                    if (images[i] != null) {
-                        imagesCache.put(page.hashCode() + "_" + i, images[i]);
-                    }
-                }
-            }
-            return images;
-        }
-
-        @Nullable
-        private Bitmap[] createPieces(View view) {
-            view.setDrawingCacheEnabled(true);
-            Bitmap bitmap = view.getDrawingCache();
-            Bitmap[] images = split(bitmap, cancellationSignal);
-            view.destroyDrawingCache();
-            view.setDrawingCacheEnabled(false);
-            return images;
+        public void setBitmap(Bitmap bitmap, int originalWidth, int originalHeight) {
+            this.bitmap = bitmap;
+            this.originalWidth = originalWidth;
+            this.originalHeight = originalHeight;
         }
 
         @Override
-        protected void onPostExecute(Bitmap[] images) {
-            super.onPostExecute(images);
-            completed = true;
-            fillGrid(gridLayout, images);
-            cancelRecreationTask(page);
+        public void onDraw(@NonNull Canvas canvas) {
+            if (bitmap != null) {
+                float left = (canvas.getWidth() - originalWidth) / 2;
+                float top = marginTop;
+                int wStep = originalWidth / cols;
+                int hStep = originalHeight / rows;
+                int wBmStep = bitmap.getWidth() / cols;
+                int hBmStep = bitmap.getHeight() / rows;
+                for (int i = 0; i < rows; i++) {
+                    for (int j = 0; j < cols; j++) {
+                        int index = i * cols + j;
+                        float tX;
+                        if (position < 0) {
+                            tX = (-translationX - randomSpacingsX[index] * (cols - j)) * absPosition;
+                        } else {
+                            tX = (translationX + randomSpacingsX[index] * j) * absPosition;
+                        }
+                        float tY = (translationY - randomSpacingsY[index] * (rows - i)) * absPosition;
+                        bitmapPiece.set(wBmStep * j, hBmStep * i, wBmStep * (j + 1), hBmStep * (i + 1));
+                        canvasPiece.set(
+                                wStep * j + left + tX,
+                                hStep * i + top + tY,
+                                wStep * (j + 1) + left + tX,
+                                hStep * (i + 1) + top + tY
+                        );
+                        // draw only visible pieces
+                        if (canvasPiece.left < canvas.getWidth() || canvasPiece.right > 0 ||
+                                canvasPiece.top < canvas.getHeight() || canvasPiece.bottom > 0) {
+                            canvas.drawBitmap(bitmap, bitmapPiece, canvasPiece, null);
+                        }
+                    }
+                }
+            }
         }
 
         @Override
-        protected void onCancelled() {
-            super.onCancelled();
-            cancelRecreationTask(page);
+        public void onTransformPage(float position) {
+            this.position = position;
+            this.absPosition = Math.abs(position);
         }
 
-        /**
-         * Check if task is completed.
-         * @return true if task completed, false otherwise
-         */
-        private boolean isCompleted() {
-            return completed;
-        }
+        private static class Factory implements BitmapTransformer.Factory {
 
-        /**
-         * Set pieces to proper image view
-         * @param gridLayout grid layout with image views
-         * @param pieces splitted image
-         */
-        private void fillGrid(@NonNull RelativeLayout gridLayout, @Nullable Bitmap[] pieces) {
-            if (pieces != null) {
-                for (int i = 0; i < gridLayout.getChildCount(); i++) {
-                    ImageView iv = (ImageView) gridLayout.getChildAt(i);
-                    iv.setImageBitmap(pieces[i]);
-                }
+            @Override
+            public BitmapTransformer newTransformer() {
+                return new BitmapTransformerImpl();
             }
-        }
-
-        /**
-         * Split image into pieces.
-         * @param image whole image
-         * @param cancellationSignal cancellation signal for operation
-         * @return splitted image or null if image was null or operation was cancelled
-         */
-        @Nullable
-        private Bitmap[] split(@Nullable Bitmap image, @NonNull CancellationSignal cancellationSignal) {
-            if (image == null) {
-                return null;
-            }
-            Bitmap[] outImages = new Bitmap[rows * columns];
-            int stepW = image.getWidth() / columns;
-            int stepH = image.getHeight() / rows;
-            for (int row = 0; row < rows; row++) {
-                for (int col = 0; col < columns; col++) {
-                    if (cancellationSignal.isCanceled())
-                        return null;
-                    int w = stepW;
-                    int h = stepH;
-                    int x = stepW * col;
-                    int y = stepH * row;
-                    if (x + w > image.getWidth()) {
-                        w = image.getWidth() - x;
-                    }
-                    if (y + h > image.getHeight()) {
-                        h = image.getHeight() - y;
-                    }
-                    if (image.isRecycled()) {
-                        return null;
-                    }
-                    Bitmap part = Bitmap.createBitmap(image, x, y, w, h);
-                    outImages[col + row * columns] = part;
-                }
-            }
-            return outImages;
         }
     }
+
 
     /**
      * View holder class for single page item.
      */
     private static class ViewHolder {
-        
+
         /**
          * Layout with splitted images.
          */
-        private RelativeLayout gridLayout;
+        private TransformerView transformerView;
 
         /**
          * Container for inner view.
@@ -439,34 +306,41 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
          */
         private Object innerObject;
     }
-    
+
     public static class Builder {
 
         private static final int MIN_ROWS = 2;
         private static final int MIN_COLUMNS = 2;
         private static final int DEFAULT_ROWS = 8;
         private static final int DEFAULT_COLUMNS = 8;
+        private static final float DEFAULT_BITMAP_SCALE = 1.0f;
 
         private final PagerAdapter innerAdapter;
         private final Context context;
-        
+
         private int rows = DEFAULT_ROWS, columns = DEFAULT_COLUMNS;
         private int marginTop;
         private float translationX;
         private float translationY;
         private float piecesSpacing;
-        
+        private float bitmapScale;
+
+        private ComplexViewDetector complexViewDetector;
+        private BitmapTransformer.Factory bitmapTransformerFactory;
+
         private Builder(@NonNull Context context, @NonNull PagerAdapter pagerAdapter) {
             this.context = context;
             this.innerAdapter = pagerAdapter;
-            this.marginTop = context.getResources().getDimensionPixelSize(R.dimen.trans_margin_top);
+            this.marginTop = 0;
             this.piecesSpacing = context.getResources().getDimension(R.dimen.trans_pieces_spacing);
             this.translationX = context.getResources().getDimension(R.dimen.trans_translation_x);
             this.translationY = context.getResources().getDimension(R.dimen.trans_translation_y);
+            this.bitmapScale = DEFAULT_BITMAP_SCALE;
         }
 
         /**
          * Set number of rows to split image. Default value: 8.
+         *
          * @param rows number of rows to split image
          */
         public Builder rows(int rows) {
@@ -476,6 +350,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
 
         /**
          * Set number of columns to split image. Default value: 8.
+         *
          * @param columns number of columns to split image
          */
         public Builder columns(int columns) {
@@ -485,6 +360,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
 
         /**
          * Set top margin. Default value: 24dp.
+         *
          * @param marginTop top margin
          */
         public Builder marginTop(int marginTop) {
@@ -494,6 +370,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
 
         /**
          * Set translationX for animation. Default value: 200dp.
+         *
          * @param translationX translationX for animation
          */
         public Builder translationX(float translationX) {
@@ -503,6 +380,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
 
         /**
          * Set translationY for animation. Default value: -150dp.
+         *
          * @param translationY translationY for animation
          */
         public Builder translationY(float translationY) {
@@ -512,6 +390,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
 
         /**
          * Set pieces spacing. Default value: 40dp.
+         *
          * @param piecesSpacing pieces spacing
          */
         public Builder piecesSpacing(float piecesSpacing) {
@@ -520,7 +399,38 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         }
 
         /**
+         * Set complex view detector.
+         *
+         * @param complexViewDetector detector or null
+         */
+        public Builder complexViewDetector(@Nullable ComplexViewDetector complexViewDetector) {
+            this.complexViewDetector = complexViewDetector;
+            return this;
+        }
+
+        /**
+         * Set factory that produces bitmap transformers.
+         *
+         * @param bitmapTransformerFactory factory or null
+         */
+        public Builder bitmapTransformerFactory(@Nullable BitmapTransformer.Factory bitmapTransformerFactory) {
+            this.bitmapTransformerFactory = bitmapTransformerFactory;
+            return this;
+        }
+
+        /**
+         * Set bitmap scale coefficient. Default values is 1.0.
+         *
+         * @param bitmapScale scale coefficient in range {@code (0, 1]}
+         */
+        public Builder bitmapScale(float bitmapScale) {
+            this.bitmapScale = bitmapScale;
+            return this;
+        }
+
+        /**
          * Create new wrapper.
+         *
          * @return new wrapper
          */
         public TransformationAdapterWrapper build() {
@@ -533,7 +443,16 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
             if (piecesSpacing < 0) {
                 throw new IllegalArgumentException("Pieces spacing can't be lower than 0");
             }
-            return new TransformationAdapterWrapper(context, innerAdapter, rows, columns, marginTop, translationX, translationY, piecesSpacing);
+            if (bitmapScale <= 0 || bitmapScale > 1) {
+                throw new IllegalArgumentException("Bitmap scale coefficient must be in range (0, 1]");
+            }
+            if (complexViewDetector == null) {
+                complexViewDetector = new ComplexViewDetectorImpl();
+            }
+            if (bitmapTransformerFactory == null) {
+                bitmapTransformerFactory = new BitmapTransformerImpl.Factory();
+            }
+            return new TransformationAdapterWrapper(this);
         }
     }
 }

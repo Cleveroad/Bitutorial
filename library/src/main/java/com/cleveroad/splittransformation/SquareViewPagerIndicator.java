@@ -10,6 +10,7 @@ import android.graphics.RectF;
 import android.os.Build;
 import android.support.annotation.ColorInt;
 import android.support.annotation.NonNull;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.util.AttributeSet;
@@ -68,10 +69,10 @@ public class SquareViewPagerIndicator extends View implements ViewPager.OnPageCh
             try {
                 squaresPaint.setColor(
                         array.getColor(R.styleable.SquareViewPagerIndicator_trans_squareColor,
-                                VersionUtil.color(context, R.color.trans_square_color)));
+                                ContextCompat.getColor(context, R.color.trans_square_color)));
                 indicatorPaint.setColor(
                         array.getColor(R.styleable.SquareViewPagerIndicator_trans_squareIndicatorColor,
-                                VersionUtil.color(context, R.color.trans_selected_square_color)));
+                                ContextCompat.getColor(context, R.color.trans_selected_square_color)));
                 squareSize = array.getDimension(R.styleable.SquareViewPagerIndicator_trans_squareSize,
                         context.getResources().getDimension(R.dimen.trans_square_size));
                 spacing = array.getDimension(R.styleable.SquareViewPagerIndicator_trans_squareSpacing,
@@ -81,8 +82,8 @@ public class SquareViewPagerIndicator extends View implements ViewPager.OnPageCh
                 array.recycle();
             }
         } else {
-            squaresPaint.setColor(VersionUtil.color(context, R.color.trans_square_color));
-            indicatorPaint.setColor(VersionUtil.color(context, R.color.trans_selected_square_color));
+            squaresPaint.setColor(ContextCompat.getColor(context, R.color.trans_square_color));
+            indicatorPaint.setColor(ContextCompat.getColor(context, R.color.trans_selected_square_color));
             squareSize = context.getResources().getDimension(R.dimen.trans_square_size);
             spacing = context.getResources().getDimension(R.dimen.trans_spacing);
             debugCount = 3;
@@ -108,6 +109,7 @@ public class SquareViewPagerIndicator extends View implements ViewPager.OnPageCh
 
     /**
      * Set square size in pixels. Default value: 10dp.
+     *
      * @param squareSize square size in pixels
      */
     public void squareSize(float squareSize) {
@@ -117,6 +119,7 @@ public class SquareViewPagerIndicator extends View implements ViewPager.OnPageCh
 
     /**
      * Set spacing size between squares in pixels. Default value: 2dp.
+     *
      * @param spacing spacing size between squares in pixels
      */
     public void spacing(float spacing) {
@@ -126,6 +129,7 @@ public class SquareViewPagerIndicator extends View implements ViewPager.OnPageCh
 
     /**
      * Set squares color.
+     *
      * @param color squares color
      */
     public void squaresColor(@ColorInt int color) {
@@ -135,6 +139,7 @@ public class SquareViewPagerIndicator extends View implements ViewPager.OnPageCh
 
     /**
      * Set indicator color.
+     *
      * @param color indicator color.
      */
     public void indicatorColor(@ColorInt int color) {
@@ -144,6 +149,7 @@ public class SquareViewPagerIndicator extends View implements ViewPager.OnPageCh
 
     /**
      * Initialize indicator with view pager.
+     *
      * @param viewPager some view pager.
      * @throws IllegalArgumentException if view pager doesn't have adapter
      */

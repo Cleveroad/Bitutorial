@@ -2,22 +2,26 @@
 <RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools">
 
 
     <FrameLayout
         android:id="@+id/item_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true">
+        android:layout_centerHorizontal="true"
+        tools:background="#ff0"
+        tools:layout_width="250dp"
+        tools:layout_height="250dp">
 
     </FrameLayout>
 
-    <RelativeLayout
-        android:id="@+id/grid"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-    </RelativeLayout>
+    <com.cleveroad.splittransformation.TransformerView
+        android:id="@+id/split_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        tools:background="#4800ffff"
+        />
 
 </RelativeLayout>

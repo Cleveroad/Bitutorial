@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.view.LayoutInflater;
@@ -41,8 +42,10 @@ public class SimpleViewsFragment extends Fragment {
         SimplePagerAdapter adapter = new SimplePagerAdapter(getContext());
         TransformationAdapterWrapper wrapper = TransformationAdapterWrapper
                 .wrap(getContext(), adapter)
-                .rows(15)
-                .columns(10)
+                .rows(10)
+                .columns(7)
+                .marginTop(getResources().getDimensionPixelSize(R.dimen.margin_top))
+                .bitmapScale(1f)
                 .build();
         viewPager.setAdapter(wrapper);
         viewPager.setPageTransformer(false, wrapper);
@@ -66,13 +69,13 @@ public class SimpleViewsFragment extends Fragment {
         private final int[] drawables = new int[] {
                 R.drawable.administrator,
                 R.drawable.cashier,
-                R.drawable.cook,/*
+                R.drawable.cook,
                 R.drawable.administrator,
                 R.drawable.cashier,
                 R.drawable.cook,
                 R.drawable.administrator,
                 R.drawable.cashier,
-                R.drawable.cook,*/
+                R.drawable.cook,
         };
 
         private final Context context;
@@ -97,7 +100,7 @@ public class SimpleViewsFragment extends Fragment {
         public Object instantiateItem(ViewGroup container, int position) {
             View view = inflater.inflate(R.layout.pager_item, container, false);
             ImageView imageView = (ImageView) view.findViewById(R.id.image);
-            imageView.setImageDrawable(context.getResources().getDrawable(drawables[position]));
+            imageView.setImageDrawable(ContextCompat.getDrawable(context, drawables[position]));
             container.addView(view);
             return view;
         }

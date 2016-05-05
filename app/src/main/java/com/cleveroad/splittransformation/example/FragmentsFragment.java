@@ -40,8 +40,9 @@ public class FragmentsFragment extends Fragment {
         SimplePagerAdapter adapter = new SimplePagerAdapter(getChildFragmentManager());
         TransformationAdapterWrapper wrapper = TransformationAdapterWrapper
                 .wrap(getContext(), adapter)
-                .rows(6)
-                .columns(6)
+                .rows(10)
+                .columns(7)
+                .marginTop(getResources().getDimensionPixelSize(R.dimen.margin_top))
                 .build();
         viewPager.setAdapter(wrapper);
         viewPager.setPageTransformer(false, wrapper);
