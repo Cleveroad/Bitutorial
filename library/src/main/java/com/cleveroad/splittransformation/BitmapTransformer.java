@@ -46,6 +46,11 @@ public interface BitmapTransformer {
      */
     interface Factory {
 
-        BitmapTransformer newTransformer();
+        /**
+         * Provide new bitmap transformer.
+         * @param position view's position in adapter
+         * @return new bitmap transformer
+         */
+        BitmapTransformer newTransformer(int position);
     }
 }
