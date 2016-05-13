@@ -87,7 +87,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         RelativeLayout view = (RelativeLayout) inflater.inflate(R.layout.trans_pager_item_with_grid_layout, container, false);
         ViewHolder viewHolder = new ViewHolder();
         viewHolder.transformerView = (TransformerView) view.findViewById(R.id.split_view);
-        viewHolder.transformerView.setBitmapTransformer(bitmapTransformerFactory.newTransformer());
+        viewHolder.transformerView.setBitmapTransformer(bitmapTransformerFactory.newTransformer(position));
         viewHolder.transformerView.setup(rows, columns, marginTop, translationX, translationY, piecesSpacing);
         viewHolder.itemContainer = (FrameLayout) view.findViewById(R.id.item_container);
         viewHolder.itemContainer.setId(ITEM_CONTAINER_START_ID + position);
@@ -286,7 +286,7 @@ public class TransformationAdapterWrapper extends PagerAdapter implements ViewPa
         private static class Factory implements BitmapTransformer.Factory {
 
             @Override
-            public BitmapTransformer newTransformer() {
+            public BitmapTransformer newTransformer(int position) {
                 return new BitmapTransformerImpl();
             }
         }
