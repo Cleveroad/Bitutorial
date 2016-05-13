@@ -2,11 +2,15 @@
 ![Header image](/images/header.png)
 
 ## Meet Crumbling tutorial for Android Apps by Cleveroad
-New library from Cleveroad
+Here comes a new Android library for those who are tired of old boring image sliding in mobile apps. Bitutorial is a simple way to add a unique transition between slides. Whether your application supports a sliding tutorial or image change feature, you certainly want to create a memorable experience. 
 
 
 ![Demo image](/images/demo.gif)
 <br/>
+Try Bitutorial — an easy to use open-source library for the Android platform. The crumbling view of horizontal sliding creates elegant motion and all the elements (images, fonts) of the library are truly customizable, so it can fit an app of any kind.
+
+If you want to stand out from the crowd of similar apps, add this unusual view to your in-app transitions.
+
 
 [![Awesome](/images/logo-footer.png)](https://www.cleveroad.com/?utm_source=github&utm_medium=label&utm_campaign=contacts)
 <br/>
