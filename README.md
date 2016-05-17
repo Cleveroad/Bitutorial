@@ -11,6 +11,11 @@ Here comes a new Android library for those who are tired of old boring image sli
 
 Try Bitutorial — an easy to use open-source library for the Android platform. The crumbling view of horizontal sliding creates elegant motion and all the elements (images, fonts) of the library are truly customizable, so it can fit an app of any kind.
 
+Everything you may want to know about the library, its implementation and use cases is scetched in our blog post: <strong><a href="https://www.cleveroad.com/blog/case-study-crumbling-tutorial-for-android">Case Study: Crumbling Tutorial For Android by Cleveroad.</a></strong>
+
+[![Article image](/images/article.jpg)](https://www.cleveroad.com/blog/case-study-crumbling-tutorial-for-android)
+<br/>
+
 If you want to stand out from the crowd of similar apps, add this unusual view to your in-app transitions.
 
 
