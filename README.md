@@ -1,9 +1,18 @@
-# @TITLE@ [![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/sindresorhus/awesome) <img src="https://www.cleveroad.com/public/comercial/label-android.svg" height="19"> <a href="https://www.cleveroad.com/?utm_source=github&utm_medium=label&utm_campaign=contacts"><img src="https://www.cleveroad.com/public/comercial/label-cleveroad.svg" height="19"></a>
-![Header image](/images/header_.jpg)
+# Bitutorial  [![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/sindresorhus/awesome) <img src="https://www.cleveroad.com/public/comercial/label-android.svg" height="19"> <a href="https://www.cleveroad.com/?utm_source=github&utm_medium=label&utm_campaign=contacts"><img src="https://www.cleveroad.com/public/comercial/label-cleveroad.svg" height="19"></a>
+![Header image](/images/header.png)
 
-@ OTHER STUFF @
+## Meet Crumbling tutorial for Android Apps by Cleveroad
+Here comes a new Android library for those who are tired of old boring image sliding in mobile apps. Bitutorial is a simple way to add a unique transition between slides. Whether your application supports a sliding tutorial or image change feature, you certainly want to create a memorable experience. 
 
 
+![Demo image](/images/demo.gif)
+<br/>
+Try Bitutorial — an easy to use open-source library for the Android platform. The crumbling view of horizontal sliding creates elegant motion and all the elements (images, fonts) of the library are truly customizable, so it can fit an app of any kind.
+
+If you want to stand out from the crowd of similar apps, add this unusual view to your in-app transitions.
+
+
+[![Awesome](/images/logo-footer.png)](https://www.cleveroad.com/?utm_source=github&utm_medium=label&utm_campaign=contacts)
 <br/>
 
 ## Setup and usage
@@ -56,7 +65,7 @@ Then pass this wrapper to your view pager.
 <br />
 ## Support
 
-If you have any other questions regarding the use of this library, please contact us for support at info@cleveroad.com (email subject: "@UPDATE@. Support request.") 
+If you have any other questions regarding the use of this library, please contact us for support at info@cleveroad.com (email subject: "Bitutorial. Support request.") 
 
 <br />
 ## License
