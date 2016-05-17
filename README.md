@@ -7,6 +7,8 @@ Here comes a new Android library for those who are tired of old boring image sli
 
 ![Demo image](/images/demo.gif)
 <br/>
+###### Also you can watch the animation of the <strong><a target="_blank" href="https://www.youtube.com/watch?v=fjbZTLP6xNI&feature=youtu.be">Crumbling tutorial for Android on YouTube</a></strong> in HD quality.
+
 Try Bitutorial — an easy to use open-source library for the Android platform. The crumbling view of horizontal sliding creates elegant motion and all the elements (images, fonts) of the library are truly customizable, so it can fit an app of any kind.
 
 If you want to stand out from the crowd of similar apps, add this unusual view to your in-app transitions.
